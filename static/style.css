@@ -1504,12 +1504,11 @@ body.dark-mode .ph-scale-labels {
   font-size: 0.6rem;
 }
 
-/* Gauges Column */
 .rt-gauges-col {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  min-width: 200px;
+  min-width: 400px;
 }
 
 .rt-gauge-card {

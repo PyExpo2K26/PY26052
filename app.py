@@ -133,8 +133,7 @@ def save_users(users):
 def login_required(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if "user" not in session:
-            return redirect(url_for("login"))
+        # Login restriction removed at user request
         return func(*args, **kwargs)
     return wrapper
 
@@ -269,7 +268,6 @@ def generate_graph(history_data, current_detected, current_timestamp, safe_limit
 # ---------------------------------------------
 
 @app.route("/detection-testing", methods=["GET", "POST"])
-@login_required
 def detection_testing():
     plot_url = None # Initialize at the absolute top
     result = None
@@ -781,6 +779,10 @@ def api_sensor_stream():
         ph_value      = round(float(hw_data.get("ph", 7.0)), 2)
         sensor_reading = round(float(hw_data.get("sensor", 1.0)), 2)
         temperature   = round(float(hw_data.get("temp", 25.0)), 1)
+        tds_value     = round(float(hw_data.get("tds", 250.0)), 0)
+        turbidity_val = round(float(hw_data.get("turbidity", 5.0)), 1)
+        color_val     = round(float(hw_data.get("color", 1.0)), 0)
+        
         detected_level = round(sensor_reading, 2)
 
         if detected_level > safe_limit:
@@ -805,6 +807,9 @@ def api_sensor_stream():
             "detected_level": detected_level,
             "ph_value":       ph_value,
             "ph_status":      ph_status,
+            "tds":            tds_value,
+            "turbidity":      turbidity_val,
+            "color":          color_val,
             "sample_type":    "milk",
             "safe_limit":     safe_limit,
             "status":         status,
@@ -820,9 +825,24 @@ def api_sensor_stream():
 
     raw_ph   = 7.0 - (sensor_reading - 1.5) / 0.18
     ph_value = round(max(0.0, min(14.0, raw_ph)), 2)
+    
+    # Simulate new sensors
+    # TDS for milk is roughly 300-400 ppm, fluctuating
+    tds_sim = round(350 + math.sin(t * 0.2) * 50 + noise * 10, 0)
+    # Turbidity for milk is high, around 1500-2500 NTU
+    turb_sim = round(2000 + math.cos(t * 0.15) * 300 + noise * 100, 0)
+    # Color (Whiteness) mock value out of 4095
+    color_sim = round(3800 + noise * 50, 0)
 
     sample_types  = ["milk", "meat", "water"]
     sample_type   = sample_types[int(t / 10) % 3]
+    
+    # Adjust mock values based on sample type to make the simulation look realistic
+    if sample_type == "water":
+        tds_sim = round(50 + noise * 5, 0)
+        turb_sim = round(5 + noise * 2, 0)
+        color_sim = round(200 + noise * 10, 0)
+        
     safe_limit    = SAFE_LIMITS.get(sample_type, 0.05)
     detected_level = round(sensor_reading, 2)
 
@@ -841,6 +861,9 @@ def api_sensor_stream():
         "detected_level": detected_level,
         "ph_value":       ph_value,
         "ph_status":      "neutral",
+        "tds":            tds_sim,
+        "turbidity":      turb_sim,
+        "color":          color_sim,
         "sample_type":    sample_type,
         "safe_limit":     safe_limit,
         "status":         status,
@@ -879,13 +902,13 @@ def api_serial_ports():
 
 @app.route("/api/connect-serial", methods=["POST"])
 def api_connect_serial():
-    """Connect to Arduino on the specified COM port."""
+    """Connect to ESP32 on the specified COM port."""
     if not SERIAL_AVAILABLE:
         return jsonify({"success": False, "error": "pyserial not installed. Run: pip install pyserial"}), 500
 
     data = request.get_json()
     port = data.get("port", "").strip()
-    baud = int(data.get("baud", 9600))
+    baud = int(data.get("baud", 115200)) # Changed baud to 115200
 
     if not port:
         return jsonify({"success": False, "error": "No COM port specified"}), 400
@@ -974,30 +997,38 @@ def _start_serveo_tunnel(port=5000):
     Start a free public tunnel via serveo.net using SSH (no signup required).
     Returns the public URL string or raises on failure.
     """
-    import subprocess, re, time
+    import subprocess, re, time, os
     cmd = [
         "ssh", "-o", "StrictHostKeyChecking=no",
         "-o", "ServerAliveInterval=60",
         "-R", f"80:localhost:{port}",
         "serveo.net"
     ]
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True
-    )
+    kwargs = {
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.STDOUT,
+        "stdin": subprocess.DEVNULL,
+        "text": True
+    }
+    if os.name == 'nt':
+        kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+        
+    proc = subprocess.Popen(cmd, **kwargs)
+    
     # Read lines until we see the forwarding URL (timeout 15s)
     deadline = time.time() + 15
     url = None
     while time.time() < deadline:
         line = proc.stdout.readline()
         if not line:
-            break
+            time.sleep(0.5)
+            continue
+        # Look for: "Forwarding HTTP traffic from https://XXXX.serveo.net"
         match = re.search(r'https?://\S+\.serveo\.net', line)
         if match:
             url = match.group(0).rstrip('.')
             break
+    
     if url:
         return proc, url
     proc.terminate()
@@ -1005,8 +1036,23 @@ def _start_serveo_tunnel(port=5000):
 
 
 if __name__ == "__main__":
+    import sys
+    # Force UTF-8 output to prevent UnicodeEncodeError in Windows terminals
+    if sys.stdout.encoding.lower() != 'utf-8':
+        sys.stdout.reconfigure(encoding='utf-8')
     public_url = None
     _tunnel_proc = None
+
+    # ── 0. Kill any zombie tunnel processes from previous runs ────────
+    import os
+    if os.name == 'nt':  # Windows
+        os.system('taskkill /f /im cloudflared.exe >nul 2>&1')
+        os.system('taskkill /f /im ngrok.exe >nul 2>&1')
+        os.system('taskkill /f /im ssh.exe >nul 2>&1') # For serveo
+    else:
+        os.system('pkill -f cloudflared >/dev/null 2>&1')
+        os.system('pkill -f ngrok >/dev/null 2>&1')
+        os.system('pkill -f ssh >/dev/null 2>&1')
 
     # ── 1. Try ngrok (needs free auth token at ngrok.com) ──────────────
     try:
@@ -1023,7 +1069,23 @@ if __name__ == "__main__":
     except Exception as _e:
         print(f"  ℹ️  ngrok skipped ({_e})")
 
-    # ── 2. Try serveo.net (free SSH tunnel — no signup needed) ─────────
+    # ── 2. Cloudflare Tunnel (FREE, no signup) ──────────────────────────
+    if not public_url:
+        try:
+            from pycloudflared import try_cloudflare
+            print("🌐 Trying Cloudflare tunnel (free, no auth needed)...")
+            _cf = try_cloudflare(port=5000, verbose=False)
+            public_url = _cf.tunnel
+            print(f"\n{'═'*55}")
+            print(f"  ✅ CLOUDFLARE  →  {public_url}")
+            print(f"     Works on ANY WiFi / mobile data (no account needed)!")
+            print(f"{'═'*55}")
+            _print_qr(public_url, "Scan ↑ with ANY phone on ANY network!")
+            print(f"{'═'*55}\n")
+        except Exception as _e:
+            print(f"  ℹ️  Cloudflare skipped ({_e})")
+
+    # ── 3. Try serveo.net (free SSH tunnel — no signup needed) ─────────
     if not public_url:
         try:
             print("🌐 Trying serveo.net tunnel (no signup needed)...")
@@ -1037,7 +1099,7 @@ if __name__ == "__main__":
         except Exception as _e:
             print(f"  ℹ️  serveo.net skipped ({_e})")
 
-    # ── 3. Fallback: local WiFi only ────────────────────────────────────
+    # ── 4. Fallback: local WiFi only ────────────────────────────────────
     if not public_url:
         import socket as _sock
         _ip = _sock.gethostbyname(_sock.gethostname())
