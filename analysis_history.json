@@ -668,5 +668,55 @@
     "ph_status": "alkaline",
     "plot_url": "/static/plots/plot_1771857081.png",
     "user": "dev1"
+  },
+  {
+    "timestamp": "2026-03-15 16:49:28",
+    "sample_type": "milk",
+    "detected_level": 0.62,
+    "level": "danger",
+    "ph_value": 8.39,
+    "ph_status": "alkaline",
+    "plot_url": "/static/plots/plot_1773573568.png",
+    "user": "dev1"
+  },
+  {
+    "timestamp": "2026-03-15 16:50:52",
+    "sample_type": "milk",
+    "detected_level": 0.25,
+    "level": "danger",
+    "ph_value": 13.94,
+    "ph_status": "alkaline",
+    "plot_url": "/static/plots/plot_1773573652.png",
+    "user": "dev1"
+  },
+  {
+    "timestamp": "2026-03-15 16:53:28",
+    "sample_type": "milk",
+    "detected_level": 0.62,
+    "level": "danger",
+    "ph_value": 8.44,
+    "ph_status": "alkaline",
+    "plot_url": "/static/plots/plot_1773573809.png",
+    "user": "dev1"
+  },
+  {
+    "timestamp": "2026-03-15 17:00:32",
+    "sample_type": "milk",
+    "detected_level": 0.6,
+    "level": "danger",
+    "ph_value": 8.67,
+    "ph_status": "alkaline",
+    "plot_url": "/static/plots/plot_1773574232.png",
+    "user": "dev1"
+  },
+  {
+    "timestamp": "2026-03-16 13:13:39",
+    "sample_type": "milk",
+    "detected_level": 0.56,
+    "level": "danger",
+    "ph_value": 0.0,
+    "ph_status": "acidic",
+    "plot_url": "/static/plots/plot_1773647019.png",
+    "user": "dev1"
   }
 ]

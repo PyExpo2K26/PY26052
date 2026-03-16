@@ -17,6 +17,13 @@ from email.mime.base import MIMEBase
 from email import encoders
 from textblob import TextBlob
 from fpdf import FPDF
+import socket
+import io
+try:
+    import qrcode
+    QRCODE_AVAILABLE = True
+except ImportError:
+    QRCODE_AVAILABLE = False
 
 # Try to import pyserial (optional — graceful fallback if not installed)
 try:
@@ -336,41 +343,12 @@ def detection_testing():
             
             # AUTOMATE PDF GENERATION (so it's ready for email)
             try:
-                # We reuse the logic from download_report but don't return the file
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", "B", 16)
-                pdf.cell(200, 10, "Steroid Detection & Safety System", ln=True, align='C')
-                pdf.set_font("Arial", "I", 12)
-                pdf.cell(200, 10, "Official Analysis Report", ln=True, align='C')
-                pdf.line(10, 30, 200, 30)
-                pdf.ln(20)
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(200, 10, f"User: {session.get('user', 'Guest')}", ln=True)
-                pdf.cell(200, 10, f"Date: {analysis_entry['timestamp']}", ln=True)
-                pdf.ln(10)
-                pdf.set_font("Arial", "B", 14)
-                pdf.cell(200, 10, "Analysis Results:", ln=True)
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(100, 10, f"Sample Type: {sample_type.title()}", ln=True)
-                pdf.cell(100, 10, f"Detected Level: {detected_level} mg/L", ln=True)
-                pdf.cell(100, 10, f"pH Value: {round(ph_value, 2)} ({ph_status.title()})", ln=True)
-                
-                pdf.set_font("Arial", "B", 12)
-                if status_level == 'safe': pdf.set_text_color(46, 125, 50)
-                elif status_level == 'danger': pdf.set_text_color(198, 40, 40)
-                else: pdf.set_text_color(249, 168, 37)
-                pdf.cell(100, 10, f"Safety Status: {status_level.upper()}", ln=True)
-                
-                pdf.set_text_color(0, 0, 0)
-                pdf.ln(20)
-                pdf.set_font("Courier", "", 10)
-                pdf.cell(200, 10, "[ Automatically generated report ]", ln=True, align='C')
-                
+                public_url = app.config.get('PUBLIC_URL', None)
+                auto_pdf = build_pdf(analysis_entry, session.get('user', 'Guest'), public_url=public_url)
                 report_dir = os.path.join("static", "reports")
                 os.makedirs(report_dir, exist_ok=True)
                 report_path = os.path.join(report_dir, f"report_{int(time.time())}.pdf")
-                pdf.output(report_path)
+                auto_pdf.output(report_path)
                 print(f"📄 Auto-generated report: {report_path}")
             except Exception as e:
                 print(f"⚠️ Failed to auto-generate PDF: {str(e)}")
@@ -504,6 +482,138 @@ def logout():
 
 
 
+# =============================================
+# SHARED PDF BUILDER HELPER
+# =============================================
+PDF_BG_PATH = os.path.join("static", "pdf_bg.png")
+
+def build_pdf(last_test, user, public_url=None):
+    """Build a styled PDF report with background image and QR code."""
+    pdf = FPDF()
+    pdf.add_page()
+
+    # --- Background Image ---
+    if os.path.exists(PDF_BG_PATH):
+        pdf.image(PDF_BG_PATH, x=0, y=0, w=210, h=297)  # Full A4 page
+
+    # --- QR Code (bottom-right corner) ---
+    if QRCODE_AVAILABLE:
+        try:
+            qr_url = public_url if public_url else f"http://{socket.gethostbyname(socket.gethostname())}:5000"
+            qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=4, border=2)
+            qr.add_data(qr_url)
+            qr.make(fit=True)
+            from PIL import Image as PILImage
+            qr_img = qr.make_image(fill_color="#1a3a5c", back_color="white")
+            qr_tmp = os.path.join("static", "reports", "_tmp_qr.png")
+            os.makedirs(os.path.dirname(qr_tmp), exist_ok=True)
+            qr_img.save(qr_tmp)
+            # Place QR bottom-right: x=155, y=250, size=40x40mm
+            pdf.image(qr_tmp, x=155, y=252, w=40, h=40)
+            # Label under QR
+            pdf.set_xy(148, 294)
+            pdf.set_font("Arial", "", 6)
+            pdf.set_text_color(60, 90, 120)
+            pdf.cell(55, 3, "Scan to open the live app", align='C')
+        except Exception as e:
+            print(f"⚠️ QR generation failed: {e}")
+
+    # --- Header ---
+    pdf.set_xy(10, 12)
+    pdf.set_font("Arial", "B", 18)
+    pdf.set_text_color(20, 60, 100)
+    pdf.cell(190, 10, "Steroid Detection & Safety System", ln=True, align='C')
+    pdf.set_font("Arial", "I", 11)
+    pdf.set_text_color(60, 90, 120)
+    pdf.cell(190, 7, "Official Analysis Report", ln=True, align='C')
+
+    # Divider line
+    pdf.set_draw_color(30, 80, 140)
+    pdf.set_line_width(0.7)
+    pdf.line(15, 32, 195, 32)
+    pdf.ln(10)
+
+    # --- User Info Box ---
+    pdf.set_fill_color(220, 235, 250)
+    pdf.set_draw_color(180, 210, 240)
+    pdf.set_line_width(0.3)
+    pdf.rect(15, 38, 180, 22, 'FD')
+    pdf.set_xy(18, 41)
+    pdf.set_font("Arial", "B", 11)
+    pdf.set_text_color(20, 60, 100)
+    pdf.cell(85, 7, f"User: {user}", ln=False)
+    pdf.set_font("Arial", "", 11)
+    pdf.cell(85, 7, f"Date: {last_test.get('timestamp', 'N/A')}", ln=True)
+    pdf.set_xy(18, 50)
+    pdf.set_font("Arial", "", 10)
+    pdf.set_text_color(60, 90, 120)
+    pdf.cell(180, 6, f"Sample Type: {last_test.get('sample_type', 'N/A').title()}", ln=True)
+    pdf.ln(8)
+
+    # --- Results Section ---
+    pdf.set_xy(15, 68)
+    pdf.set_font("Arial", "B", 13)
+    pdf.set_text_color(20, 60, 100)
+    pdf.cell(180, 8, "Analysis Results", ln=True)
+    pdf.set_line_width(0.3)
+    pdf.line(15, 77, 195, 77)
+    pdf.ln(3)
+
+    # Detected Level
+    pdf.set_font("Arial", "", 12)
+    pdf.set_text_color(50, 50, 80)
+    pdf.cell(90, 9, f"Detected Steroid Level:", ln=False)
+    pdf.set_font("Arial", "B", 12)
+    pdf.set_text_color(20, 60, 100)
+    pdf.cell(90, 9, f"{last_test.get('detected_level', 'N/A')} mg/L", ln=True)
+
+    # pH Value
+    pdf.set_font("Arial", "", 12)
+    pdf.set_text_color(50, 50, 80)
+    ph_val = last_test.get('ph_value', 'N/A')
+    ph_status = last_test.get('ph_status', '').title()
+    pdf.cell(90, 9, f"pH Value:", ln=False)
+    pdf.set_font("Arial", "B", 12)
+    pdf.set_text_color(20, 60, 100)
+    pdf.cell(90, 9, f"{ph_val} ({ph_status})", ln=True)
+
+    # Safety Status (colored badge)
+    status = last_test.get('level', 'unknown').upper()
+    pdf.ln(4)
+    if status == 'SAFE':
+        pdf.set_fill_color(46, 125, 50)
+    elif status == 'DANGER':
+        pdf.set_fill_color(198, 40, 40)
+    else:
+        pdf.set_fill_color(249, 168, 37)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Arial", "B", 13)
+    pdf.set_x(15)
+    pdf.cell(80, 11, f"  Safety Status: {status}", fill=True, ln=True)
+    pdf.ln(12)
+
+    # --- Safe Limit Reference ---
+    pdf.set_text_color(50, 50, 80)
+    pdf.set_font("Arial", "", 10)
+    safe_limit = last_test.get('safe_dose', 0.05)
+    pdf.set_x(15)
+    pdf.cell(180, 7, f"Regulatory Safe Limit: {safe_limit} mg/kg  |  WHO Standard Reference", ln=True)
+    pdf.ln(8)
+
+    # Divider
+    pdf.set_draw_color(180, 210, 240)
+    pdf.set_line_width(0.3)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(8)
+
+    # --- Footer ---
+    pdf.set_xy(10, 282)
+    pdf.set_font("Courier", "", 8)
+    pdf.set_text_color(100, 130, 160)
+    pdf.cell(135, 5, "[ Automatically generated by the AI Safety System ]", align='L')
+
+    return pdf
+
 # --- FEATURE 3: PDF REPORT GENERATION ---
 @app.route("/download_report")
 @login_required
@@ -514,58 +624,15 @@ def download_report():
         
     last_test = history[-1]
     
-    # Create PDF
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
-    
-    # Header
-    pdf.cell(200, 10, "Steroid Detection & Safety System", ln=True, align='C')
-    pdf.set_font("Arial", "I", 12)
-    pdf.cell(200, 10, "Official Analysis Report", ln=True, align='C')
-    pdf.line(10, 30, 200, 30)
-    pdf.ln(20)
-    
-    # User Info
-    pdf.set_font("Arial", "", 12)
-    pdf.cell(200, 10, f"User: {session.get('user', 'Guest')}", ln=True)
-    pdf.cell(200, 10, f"Date: {last_test.get('timestamp')}", ln=True)
-    pdf.ln(10)
-    
-    # Result Details
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(200, 10, "Analysis Results:", ln=True)
-    pdf.set_font("Arial", "", 12)
-    
-    pdf.cell(100, 10, f"Sample Type: {last_test.get('sample_type', 'N/A').title()}", ln=True)
-    pdf.cell(100, 10, f"Detected Level: {last_test.get('detected_level')} mg/L", ln=True)
-    
-    # Status Logic for Color/Text
-    status = last_test.get('level', 'unknown').upper()
-    pdf.set_font("Arial", "B", 12)
-    if status == 'SAFE':
-        pdf.set_text_color(46, 125, 50) # Green
-    elif status == 'DANGER':
-        pdf.set_text_color(198, 40, 40) # Red
-    else:
-        pdf.set_text_color(249, 168, 37) # Yellow/Orange
-        
-    pdf.cell(100, 10, f"Safety Status: {status}", ln=True)
-    
-    # Reset color
-    pdf.set_text_color(0, 0, 0)
-    pdf.ln(20)
-    
-    # Verification
-    pdf.set_font("Courier", "", 10)
-    pdf.cell(200, 10, "[ This report is automatically generated by the AI Safety System ]", ln=True, align='C')
-    
-    # Save (temp) and Send
+    # Build styled PDF using shared helper
+    public_url = app.config.get('PUBLIC_URL', None)
+    pdf = build_pdf(last_test, session.get('user', 'Guest'), public_url=public_url)
+
     filename = f"report_{int(time.time())}.pdf"
     filepath = os.path.join("static", "reports", filename)
     os.makedirs(os.path.join("static", "reports"), exist_ok=True)
     pdf.output(filepath)
-    
+
     return send_file(filepath, as_attachment=True)
 # ---------------------------------------------
 
@@ -871,5 +938,103 @@ def api_hardware_status():
     })
 
 
+def _print_qr(url, label=""):
+    """Print a QR code for the given URL in the terminal."""
+    if not QRCODE_AVAILABLE:
+        return
+    try:
+        import qrcode as _qr, io as _io
+        qr = _qr.QRCode(border=2)
+        qr.add_data(url)
+        qr.make()
+        buf = _io.StringIO()
+        qr.print_ascii(out=buf, invert=True)
+        print(buf.getvalue())
+        if label:
+            print(f"  {label}")
+    except Exception as e:
+        print(f"  (QR error: {e})")
+
+
+def _start_serveo_tunnel(port=5000):
+    """
+    Start a free public tunnel via serveo.net using SSH (no signup required).
+    Returns the public URL string or raises on failure.
+    """
+    import subprocess, re, time
+    cmd = [
+        "ssh", "-o", "StrictHostKeyChecking=no",
+        "-o", "ServerAliveInterval=60",
+        "-R", f"80:localhost:{port}",
+        "serveo.net"
+    ]
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True
+    )
+    # Read lines until we see the forwarding URL (timeout 15s)
+    deadline = time.time() + 15
+    url = None
+    while time.time() < deadline:
+        line = proc.stdout.readline()
+        if not line:
+            break
+        match = re.search(r'https?://\S+\.serveo\.net', line)
+        if match:
+            url = match.group(0).rstrip('.')
+            break
+    if url:
+        return proc, url
+    proc.terminate()
+    raise RuntimeError("Serveo did not return a URL in time")
+
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    public_url = None
+    _tunnel_proc = None
+
+    # ── 1. Try ngrok (needs free auth token at ngrok.com) ──────────────
+    try:
+        from pyngrok import ngrok as _ngrok
+        print("🌐 Trying ngrok tunnel...")
+        _tunnel = _ngrok.connect(5000, "http")
+        public_url = _tunnel.public_url
+        print(f"\n{'═'*55}")
+        print(f"  ✅ NGROK  →  {public_url}")
+        print(f"     Works on ANY WiFi / mobile data!")
+        print(f"{'═'*55}")
+        _print_qr(public_url, "Scan ↑ with ANY phone on ANY network!")
+        print(f"{'═'*55}\n")
+    except Exception as _e:
+        print(f"  ℹ️  ngrok skipped ({_e})")
+
+    # ── 2. Try serveo.net (free SSH tunnel — no signup needed) ─────────
+    if not public_url:
+        try:
+            print("🌐 Trying serveo.net tunnel (no signup needed)...")
+            _tunnel_proc, public_url = _start_serveo_tunnel(5000)
+            print(f"\n{'═'*55}")
+            print(f"  ✅ SERVEO  →  {public_url}")
+            print(f"     Works on ANY WiFi / mobile data!")
+            print(f"{'═'*55}")
+            _print_qr(public_url, "Scan ↑ with ANY phone on ANY network!")
+            print(f"{'═'*55}\n")
+        except Exception as _e:
+            print(f"  ℹ️  serveo.net skipped ({_e})")
+
+    # ── 3. Fallback: local WiFi only ────────────────────────────────────
+    if not public_url:
+        import socket as _sock
+        _ip = _sock.gethostbyname(_sock.gethostname())
+        public_url = f"http://{_ip}:5000"
+        print(f"\n{'═'*52}")
+        print(f"  📱 LOCAL WiFi only  →  {public_url}")
+        print(f"  (Phone must be on the SAME WiFi network)")
+        print(f"{'═'*52}")
+        _print_qr(public_url, "Same-WiFi scan only")
+        print(f"{'═'*52}\n")
+
+    app.config['PUBLIC_URL'] = public_url
+    app.run(debug=True, host="0.0.0.0", port=5000)
