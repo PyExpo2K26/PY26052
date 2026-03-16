@@ -8,6 +8,67 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=lighttheme">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+    /* ── Mobile Responsive Overrides ─────────────────── */
+    @media (max-width: 768px) {
+        .main-container { padding: 0 8px; }
+        header h1 { font-size: 1.1rem; }
+        header p  { font-size: 0.78rem; }
+
+        /* Navbar: wrap and scroll */
+        .nav-links { flex-wrap: wrap; gap: 4px; padding: 6px; }
+        .nav-links li a, .nav-links li button { font-size: 0.75rem; padding: 6px 10px; }
+
+        /* Ticker: scroll */
+        .rt-ticker { overflow-x: auto; white-space: nowrap; }
+        .rt-ticker-inner { display: inline-flex; gap: 16px; }
+
+        /* Hardware panel: stack */
+        .hw-panel { flex-direction: column; gap: 8px; padding: 10px; }
+        .hw-panel-right { flex-wrap: wrap; gap: 6px; width: 100%; }
+        .hw-select { width: 100%; }
+
+        /* Quick actions: stack */
+        .action-buttons { flex-direction: column; gap: 8px; }
+        .btn-large { width: 100%; text-align: center; }
+
+        /* Real-time monitor: single column */
+        .rt-top-row { flex-direction: column; gap: 12px; }
+        .rt-chart-box { width: 100%; min-width: 0; }
+        #rt-waveform-canvas { width: 100% !important; height: 130px !important; }
+        .rt-gauges-col { flex-direction: row; flex-wrap: wrap; justify-content: space-between; width: 100%; }
+        .rt-gauge-card { flex: 1 1 45%; min-width: 130px; }
+
+        /* Stats pills: 2 per row */
+        .rt-stats-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+        .rt-stat-pill { padding: 10px; }
+
+        /* Process steps: 2-column grid */
+        .process-steps { grid-template-columns: 1fr 1fr; gap: 10px; }
+        .process-step { padding: 14px 10px; }
+
+        /* Bottom sections: stack */
+        .bottom-sections-wrapper { flex-direction: column; }
+        .statistics-section, .features-section { width: 100%; }
+        .stats-grid { grid-template-columns: 1fr 1fr; }
+        .features-grid { grid-template-columns: 1fr 1fr; }
+
+        /* Knowledge base: single column */
+        .kb-grid { grid-template-columns: 1fr; }
+        .limit-table { font-size: 0.78rem; }
+        .limit-table th, .limit-table td { padding: 6px 4px; }
+
+        /* App tags row-wrap */
+        .apps-grid-compact { flex-wrap: wrap; gap: 6px; }
+        .app-tag { font-size: 0.75rem; padding: 5px 10px; }
+    }
+    @media (max-width: 400px) {
+        .process-steps { grid-template-columns: 1fr; }
+        .rt-stats-row  { grid-template-columns: 1fr; }
+        .stats-grid    { grid-template-columns: 1fr; }
+        .features-grid { grid-template-columns: 1fr; }
+    }
+    </style>
 </head>
 
 <body class="home-bg-body">
@@ -173,43 +234,6 @@
         </section>
         {% endif %}
 
-        <!-- Working Process Section -->
-        <section class="card" aria-labelledby="process-heading">
-            <h2 id="process-heading"><i class="fas fa-cogs"></i> Working Process</h2>
-            <div class="process-steps">
-                <div class="process-step">
-                    <div class="step-number">1</div>
-                    <i class="fas fa-flask"></i>
-                    <h4>Sample Detection</h4>
-                    <p>Sensor readings collected from milk/meat samples</p>
-                </div>
-                <div class="process-step">
-                    <div class="step-number">2</div>
-                    <i class="fas fa-sliders-h"></i>
-                    <h4>Calibration</h4>
-                    <p>Raw data converted to concentration (mg/L)</p>
-                </div>
-                <div class="process-step">
-                    <div class="step-number">3</div>
-                    <i class="fas fa-calculator"></i>
-                    <h4>Dosage Calc</h4>
-                    <p>Safety calculated based on weight & standards</p>
-                </div>
-                <div class="process-step">
-                    <div class="step-number">4</div>
-                    <i class="fas fa-shield-alt"></i>
-                    <h4>Safety Analysis</h4>
-                    <p>Levels compared with regulatory limits</p>
-                </div>
-                <div class="process-step">
-                    <div class="step-number">5</div>
-                    <i class="fas fa-exclamation-circle"></i>
-                    <h4>Warning</h4>
-                    <p>System alerts if levels exceed safe limits</p>
-                </div>
-            </div>
-        </section>
-
         <!-- REAL-TIME MONITOR SECTION -->
         <section class="rt-monitor-section" aria-labelledby="rt-monitor-heading">
             <h2 id="rt-monitor-heading"><i class="fas fa-satellite-dish"></i> Real-Time Monitor</h2>
@@ -316,6 +340,43 @@
                 <div class="rt-feed-header"><i class="fas fa-list-alt"></i> Recent Activity Feed</div>
                 <div class="rt-feed-list" id="rt-feed-list">
                     <div class="rt-feed-empty"><i class="fas fa-satellite-dish"></i> Waiting for live data...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Working Process Section -->
+        <section class="card" aria-labelledby="process-heading">
+            <h2 id="process-heading"><i class="fas fa-cogs"></i> Working Process</h2>
+            <div class="process-steps">
+                <div class="process-step">
+                    <div class="step-number">1</div>
+                    <i class="fas fa-flask"></i>
+                    <h4>Sample Detection</h4>
+                    <p>Sensor readings collected from milk/meat samples</p>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">2</div>
+                    <i class="fas fa-sliders-h"></i>
+                    <h4>Calibration</h4>
+                    <p>Raw data converted to concentration (mg/L)</p>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">3</div>
+                    <i class="fas fa-calculator"></i>
+                    <h4>Dosage Calc</h4>
+                    <p>Safety calculated based on weight &amp; standards</p>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">4</div>
+                    <i class="fas fa-shield-alt"></i>
+                    <h4>Safety Analysis</h4>
+                    <p>Levels compared with regulatory limits</p>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">5</div>
+                    <i class="fas fa-exclamation-circle"></i>
+                    <h4>Warning</h4>
+                    <p>System alerts if levels exceed safe limits</p>
                 </div>
             </div>
         </section>

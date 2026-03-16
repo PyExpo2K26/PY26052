@@ -37,6 +37,19 @@ except ImportError:
 app = Flask(__name__)
 app.secret_key = "super_secret_key_for_demo_only"  # In production, use environment variable
 
+# ── Session cookie fix for ngrok / reverse proxy ──────────────
+# Without this, login session is lost when navigating pages via ngrok
+app.config.update(
+    SESSION_COOKIE_SAMESITE = 'Lax',   # allow same-site navigation
+    SESSION_COOKIE_SECURE   = False,    # ngrok handles HTTPS; Flask runs HTTP
+    SESSION_COOKIE_HTTPONLY = True,
+    SESSION_COOKIE_PATH     = '/',
+)
+
+# Tell Flask it's behind a reverse proxy (ngrok) so redirects use https://
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
 # SAFE LIMITS
 SAFE_LIMIT_MG_L = 0.5
 RECOMMENDED_MG_KG = 0.02
@@ -1037,4 +1050,4 @@ if __name__ == "__main__":
         print(f"{'═'*52}\n")
 
     app.config['PUBLIC_URL'] = public_url
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5000, use_reloader=False)
