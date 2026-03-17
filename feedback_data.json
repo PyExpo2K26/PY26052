@@ -1,5 +1,29 @@
 [
   {
+    "name": "Guru",
+    "email": "guruar0821@gmail.com",
+    "message": "good",
+    "rating": "5",
+    "timestamp": "2026-03-17 11:13:00",
+    "sentiment": "Positive"
+  },
+  {
+    "name": "Guru",
+    "email": "guruar0821@gmail.com",
+    "message": "good",
+    "rating": "5",
+    "timestamp": "2026-03-17 11:12:58",
+    "sentiment": "Positive"
+  },
+  {
+    "name": "Guru",
+    "email": "guruar0821@gmail.com",
+    "message": "good",
+    "rating": "5",
+    "timestamp": "2026-03-17 11:12:52",
+    "sentiment": "Positive"
+  },
+  {
     "name": "Dev",
     "email": "deva21112007@gmail.com",
     "message": "Analysis Result: 0.56mg/L (danger) - Sample Limit: 0.05mg",

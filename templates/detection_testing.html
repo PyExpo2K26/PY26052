@@ -200,35 +200,8 @@
 
             <!-- Live Sensor Chart + Gauges Row -->
             <div class="rt-top-row">
-                <!-- Live Waveform Chart -->
-                <div class="rt-chart-box">
-                    <div class="rt-chart-header">
-                        <span><i class="fas fa-wave-square"></i> Live Sensor Waveform</span>
-                        <span class="rt-live-badge"><i class="fas fa-circle"></i> LIVE</span>
-                    </div>
-                    <canvas id="rt-waveform-canvas" width="600" height="160"></canvas>
-                    <div class="rt-chart-footer">
-                        <span id="rt-sample-label">Sample: --</span>
-                        <span id="rt-signal"><i class="fas fa-signal"></i> Signal: --%</span>
-                    </div>
-                </div>
-
                 <!-- Gauge Cards -->
                 <div class="rt-gauges-col">
-                    <div class="rt-gauge-card" id="rt-gauge-sensor">
-                        <div class="rt-gauge-icon"><i class="fas fa-microscope"></i></div>
-                        <div class="rt-gauge-info">
-                            <span class="rt-gauge-label">Sensor Reading</span>
-                            <span class="rt-gauge-val" id="rt-sensor-val">-- mg/L</span>
-                        </div>
-                        <div class="rt-gauge-ring" id="rt-ring-sensor">
-                            <svg viewBox="0 0 36 36">
-                                <circle class="rt-ring-bg" cx="18" cy="18" r="15" />
-                                <circle class="rt-ring-fill" id="rt-ring-fill-sensor" cx="18" cy="18" r="15"
-                                    stroke-dasharray="0 94" />
-                            </svg>
-                        </div>
-                    </div>
                     <div class="rt-gauge-card" id="rt-gauge-ph">
                         <div class="rt-gauge-icon"><i class="fas fa-tint"></i></div>
                         <div class="rt-gauge-info">
@@ -480,12 +453,6 @@
         // ============================================================
         // REAL-TIME DATA ENGINE
         // ============================================================
-        const RT_WAVEFORM_MAX = 40;   // Points shown on canvas waveform
-        let waveformData = [];         // {val, status} history
-        let waveformAnimFrame = null;
-
-        const canvas = document.getElementById('rt-waveform-canvas');
-        const ctx = canvas ? canvas.getContext('2d') : null;
 
         // -- Sensor stream polling every 1.5 s --
         function pollSensorStream() {
@@ -493,31 +460,22 @@
                 .then(r => r.json())
                 .then(d => {
                     updateSensorGauges(d);
-                    pushWaveform(d);
                 })
                 .catch(() => {});
         }
 
         function updateSensorGauges(d) {
-            setText('rt-sensor-val', d.sensor_reading + ' mg/L');
             setText('rt-ph-val', d.ph_value);
             setText('rt-temp-val', d.temperature + ' °C');
             setText('rt-tds-val', d.tds + ' ppm');
             setText('rt-turbidity-val', d.turbidity + ' NTU');
             setText('rt-color-val', d.color);
 
-            setRing('rt-ring-fill-sensor', d.sensor_reading, 4.0); // max 4.0 mg/L
             setRing('rt-ring-fill-ph', d.ph_value, 14);
             setRing('rt-ring-fill-temp', d.temperature, 40);       // max display 40°C
             setRing('rt-ring-fill-tds', d.tds, 1000);              // max 1000 ppm
             setRing('rt-ring-fill-turbidity', d.turbidity, 3000);  // max 3000 NTU
             setRing('rt-ring-fill-color', d.color, 4095);          // max 4095 ADC
-
-            // Status flash on sensor gauge
-            const gauge = document.getElementById('rt-gauge-sensor');
-            if (gauge) {
-                gauge.className = 'rt-gauge-card rt-gauge-' + d.status;
-            }
         }
 
         function setRing(id, val, max) {
@@ -526,82 +484,6 @@
             const pct = Math.min(val / max, 1);
             const circ = 94; // 2*pi*r = 2*3.14*15 ≈ 94
             el.setAttribute('stroke-dasharray', (pct * circ).toFixed(1) + ' ' + circ);
-        }
-
-        function pushWaveform(d) {
-            waveformData.push({ val: d.sensor_reading, status: d.status });
-            if (waveformData.length > RT_WAVEFORM_MAX) waveformData.shift();
-            drawWaveform();
-        }
-
-        function drawWaveform() {
-            if (!ctx) return;
-            const W = canvas.width, H = canvas.height;
-            ctx.clearRect(0, 0, W, H);
-
-            if (waveformData.length < 2) return;
-
-            const minVal = 0;
-            const maxVal = 4.0;
-
-            const stepX = W / (RT_WAVEFORM_MAX - 1);
-            const padY = 20;
-
-            // Grid lines
-            ctx.strokeStyle = 'rgba(0,150,136,0.1)';
-            ctx.lineWidth = 1;
-            for (let i = 0; i <= 4; i++) {
-                const y = padY + (H - 2 * padY) * (i / 4);
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-            }
-
-            // Filled area under line
-            ctx.beginPath();
-            waveformData.forEach((pt, i) => {
-                const x = i * stepX;
-                const y = padY + (H - 2 * padY) * (1 - (pt.val - minVal) / (maxVal - minVal));
-                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-            });
-            ctx.lineTo((waveformData.length - 1) * stepX, H);
-            ctx.lineTo(0, H);
-            ctx.closePath();
-
-            const grad = ctx.createLinearGradient(0, 0, 0, H);
-            grad.addColorStop(0, 'rgba(0,191,165,0.25)');
-            grad.addColorStop(1, 'rgba(0,191,165,0.01)');
-            ctx.fillStyle = grad;
-            ctx.fill();
-
-            // Stroke line
-            ctx.beginPath();
-            waveformData.forEach((pt, i) => {
-                const x = i * stepX;
-                const y = padY + (H - 2 * padY) * (1 - (pt.val - minVal) / (maxVal - minVal));
-                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-            });
-            ctx.strokeStyle = '#00bfa5';
-            ctx.lineWidth = 2.5;
-            ctx.lineJoin = 'round';
-            ctx.stroke();
-
-            // Latest dot
-            const last = waveformData[waveformData.length - 1];
-            const lx = (waveformData.length - 1) * stepX;
-            const ly = padY + (H - 2 * padY) * (1 - (last.val - minVal) / (maxVal - minVal));
-            const dotColor = last.status === 'safe' ? '#4caf50' : last.status === 'caution' ? '#ff9800' : '#f44336';
-            ctx.beginPath();
-            ctx.arc(lx, ly, 5, 0, 2 * Math.PI);
-            ctx.fillStyle = dotColor;
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Label current value
-            ctx.fillStyle = '#00796b';
-            ctx.font = 'bold 11px Poppins, sans-serif';
-            ctx.textAlign = 'right';
-            ctx.fillText(last.val + ' mg/L', lx - 8, Math.max(ly - 8, 14));
         }
 
         // -- Dashboard stats polling every 3 s --
@@ -858,8 +740,7 @@
                 const latest = waveformData[waveformData.length - 1];
                 document.getElementById('live_sensor').value = latest.val;
             } else {
-                const sVal = document.getElementById('rt-sensor-val').textContent.split(' ')[0];
-                document.getElementById('live_sensor').value = isNaN(parseFloat(sVal)) ? 0 : parseFloat(sVal);
+                document.getElementById('live_sensor').value = 0;
             }
             
             const sampleText = document.getElementById('rt-sample-label').textContent.toLowerCase();
