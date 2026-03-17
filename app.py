@@ -501,11 +501,13 @@ PDF_BG_PATH = os.path.join("static", "pdf_bg.png")
 def build_pdf(last_test, user, public_url=None):
     """Build a styled PDF report with background image and QR code."""
     pdf = FPDF()
+    pdf.set_auto_page_break(auto=False, margin=0)
     pdf.add_page()
 
     # --- Background Image ---
     if os.path.exists(PDF_BG_PATH):
-        pdf.image(PDF_BG_PATH, x=0, y=0, w=210, h=297)  # Full A4 page
+        # Full A4 page is 210x297mm
+        pdf.image(PDF_BG_PATH, x=0, y=0, w=210, h=297)
 
     # --- QR Code (bottom-right corner) ---
     if QRCODE_AVAILABLE:
@@ -730,7 +732,10 @@ def api_realtime_data():
     caution_count = len([h for h in history if h.get("level") == "caution"])
     avg_rating = round(sum([int(f.get("rating", 5)) for f in feedback_list]) / len(feedback_list), 1) if feedback_list else 0
 
-    recent = history[-5:][::-1]
+    # Filter for safe milk samples only
+    safe_milk_history = [h for h in history if h.get("level") == "safe" and h.get("sample_type", "").lower() == "milk"]
+    recent = safe_milk_history[-5:][::-1]
+    
     safe_pct = round((safe_count / total_analyses * 100), 1) if total_analyses > 0 else 0
 
     with hw_lock:
