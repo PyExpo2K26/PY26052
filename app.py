@@ -533,7 +533,7 @@ def build_pdf(last_test, user, public_url=None):
     pdf.set_xy(10, 12)
     pdf.set_font("Arial", "B", 18)
     pdf.set_text_color(20, 60, 100)
-    pdf.cell(190, 10, "Steroid Detection & Safety System", ln=True, align='C')
+    pdf.cell(190, 10, "PureCheck and Quality Analysis", ln=True, align='C')
     pdf.set_font("Arial", "I", 11)
     pdf.set_text_color(60, 90, 120)
     pdf.cell(190, 7, "Official Analysis Report", ln=True, align='C')

@@ -1,5 +1,5 @@
 """
-live_graph.py  —  Real-time terminal graph for the Steroid Detection System
+live_graph.py  —  Real-time terminal graph for the PureCheck and Quality Analysis
 Run in a SEPARATE terminal while python app.py is running.
 Press Ctrl+C to stop.
 """
@@ -35,7 +35,7 @@ def draw(history, latest):
     clear()
     w = min(term_w - 2, 78)
     print(BOLD + CYAN + "═" * w + RESET)
-    print(BOLD + CYAN + "  📊 LIVE SENSOR GRAPH  —  Steroid Detection System" + RESET)
+    print(BOLD + CYAN + "  📊 LIVE SENSOR GRAPH  —  PureCheck and Quality Analysis" + RESET)
     print(BOLD + CYAN + "═" * w + RESET)
 
     # Show latest values
