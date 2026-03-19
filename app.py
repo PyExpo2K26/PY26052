@@ -434,15 +434,13 @@ def community_reviews():
                 attachment_path = None
                 if history:
                     last_entry = history[-1]
-                    # We need to construct the local path from the plot_url or similar
-                    # However, Feature 3 saves reports to static/reports/report_XYZ.pdf
-                    # Let's check for the most recent file in static/reports
+                    # Generate a clean PDF for the email without background image or QR code
+                    public_url = app.config.get('PUBLIC_URL', None)
+                    email_pdf = build_pdf(last_entry, last_entry.get('user', 'Guest'), public_url=public_url, is_email=True)
                     report_dir = os.path.join("static", "reports")
-                    if os.path.exists(report_dir):
-                        reports = [os.path.join(report_dir, f) for f in os.listdir(report_dir) if f.endswith(".pdf")]
-                        if reports:
-                            # Use the most recently modified file
-                            attachment_path = max(reports, key=os.path.getmtime)
+                    os.makedirs(report_dir, exist_ok=True)
+                    attachment_path = os.path.join(report_dir, f"email_report_{int(time.time())}.pdf")
+                    email_pdf.output(attachment_path)
                 
                 send_email(user_feedback["email"], user_feedback["name"], user_feedback["rating"], user_feedback["message"], attachment_path)
 
@@ -498,38 +496,39 @@ def logout():
 # =============================================
 PDF_BG_PATH = os.path.join("static", "pdf_bg.png")
 
-def build_pdf(last_test, user, public_url=None):
+def build_pdf(last_test, user, public_url=None, is_email=False):
     """Build a styled PDF report with background image and QR code."""
     pdf = FPDF()
     pdf.set_auto_page_break(auto=False, margin=0)
     pdf.add_page()
 
-    # --- Background Image ---
-    if os.path.exists(PDF_BG_PATH):
-        # Full A4 page is 210x297mm
-        pdf.image(PDF_BG_PATH, x=0, y=0, w=210, h=297)
+    if not is_email:
+        # --- Background Image ---
+        if os.path.exists(PDF_BG_PATH):
+            # Full A4 page is 210x297mm
+            pdf.image(PDF_BG_PATH, x=0, y=0, w=210, h=297)
 
-    # --- QR Code (bottom-right corner) ---
-    if QRCODE_AVAILABLE:
-        try:
-            qr_url = public_url if public_url else f"http://{socket.gethostbyname(socket.gethostname())}:5000"
-            qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=4, border=2)
-            qr.add_data(qr_url)
-            qr.make(fit=True)
-            from PIL import Image as PILImage
-            qr_img = qr.make_image(fill_color="#1a3a5c", back_color="white")
-            qr_tmp = os.path.join("static", "reports", "_tmp_qr.png")
-            os.makedirs(os.path.dirname(qr_tmp), exist_ok=True)
-            qr_img.save(qr_tmp)
-            # Place QR bottom-right: x=155, y=250, size=40x40mm
-            pdf.image(qr_tmp, x=155, y=252, w=40, h=40)
-            # Label under QR
-            pdf.set_xy(148, 294)
-            pdf.set_font("Arial", "", 6)
-            pdf.set_text_color(60, 90, 120)
-            pdf.cell(55, 3, "Scan to open the live app", align='C')
-        except Exception as e:
-            print(f"⚠️ QR generation failed: {e}")
+        # --- QR Code (bottom-right corner) ---
+        if QRCODE_AVAILABLE:
+            try:
+                qr_url = public_url if public_url else f"http://{socket.gethostbyname(socket.gethostname())}:5000"
+                qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=4, border=2)
+                qr.add_data(qr_url)
+                qr.make(fit=True)
+                from PIL import Image as PILImage
+                qr_img = qr.make_image(fill_color="#1a3a5c", back_color="white")
+                qr_tmp = os.path.join("static", "reports", "_tmp_qr.png")
+                os.makedirs(os.path.dirname(qr_tmp), exist_ok=True)
+                qr_img.save(qr_tmp)
+                # Place QR bottom-right: x=155, y=250, size=40x40mm
+                pdf.image(qr_tmp, x=155, y=252, w=40, h=40)
+                # Label under QR
+                pdf.set_xy(148, 294)
+                pdf.set_font("Arial", "", 6)
+                pdf.set_text_color(60, 90, 120)
+                pdf.cell(55, 3, "Scan to open the live app", align='C')
+            except Exception as e:
+                print(f"⚠️ QR generation failed: {e}")
 
     # --- Header ---
     pdf.set_xy(10, 12)
@@ -1039,6 +1038,7 @@ if __name__ == "__main__":
 
     # ── 1. Try ngrok (needs free auth token at ngrok.com) ──────────────
     try:
+        raise Exception("Skipping ngrok because it's causing session closed errors. Using Cloudflare instead.")
         from pyngrok import ngrok as _ngrok
         print("🌐 Trying ngrok tunnel...")
         _tunnel = _ngrok.connect(5000, "http")
