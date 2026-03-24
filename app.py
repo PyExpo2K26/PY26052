@@ -76,7 +76,7 @@ SENDER_PASSWORD = "hqqm kwrf hlyq yqmu"
 def send_email(to_email, name, rating, message, attachment_path=None):
     try:
         if "your_email" in SENDER_EMAIL:
-            print("❌ Email not sent: Credentials not configured.")
+            print("Email not sent: Credentials not configured.")
             return False
 
         msg = MIMEMultipart()
@@ -105,19 +105,19 @@ def send_email(to_email, name, rating, message, attachment_path=None):
                     f"attachment; filename={os.path.basename(attachment_path)}",
                 )
                 msg.attach(part)
-                print(f"📎 Attachment added: {attachment_path}")
+                print(f"Attachment added: {attachment_path}")
             except Exception as e:
-                print(f"⚠️ Failed to attach file: {str(e)}")
+                print(f"Failed to attach file: {str(e)}")
 
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=10)
         server.starttls()
         server.login(SENDER_EMAIL, SENDER_PASSWORD.replace(" ", ""))  # Handle spaces in app password
         server.send_message(msg)
         server.quit()
-        print(f"✅ Email sent successfully to {to_email}")
+        print(f"Email sent successfully to {to_email}")
         return True
     except Exception as e:
-        print(f"❌ Error sending email: {str(e)}")
+        print(f"Error sending email: {str(e)}")
         return False
 
 def load_users():
@@ -444,12 +444,15 @@ def community_reviews():
                 
                 send_email(user_feedback["email"], user_feedback["name"], user_feedback["rating"], user_feedback["message"], attachment_path)
 
-            success_message = "✅ Thank you for your feedback!"
+            success_message = "Thank you for your feedback!"
             feedback_list = load_feedback()
             return render_template("community_reviews.html", success_message=success_message, feedback_list=feedback_list)
         except Exception as e:
-            error_message = f"❌ Error saving feedback: {str(e)}"
-            feedback_list = load_feedback()
+            error_message = f"Error saving feedback: {str(e)}"
+            try:
+                feedback_list = load_feedback()
+            except Exception:
+                feedback_list = []
             return render_template("community_reviews.html", error_message=error_message, feedback_list=feedback_list)
     
     feedback_list = load_feedback()
