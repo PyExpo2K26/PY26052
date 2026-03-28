@@ -323,6 +323,22 @@
                 </div>
             </div>
 
+            <!-- Location & Live Time Banner -->
+            <div style="background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; border-left: 5px solid #1976d2;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <i class="fas fa-map-marked-alt" style="font-size: 2.5rem; color: #1976d2;"></i>
+                    <div>
+                        <h4 style="margin: 0; color: #333; font-size: 1.15rem;">KGiSL Institute of Technology, Coimbatore, Tamil Nadu, India</h4>
+                        <p style="margin: 5px 0 0; font-size: 0.95rem; color: #666; font-family: monospace;">
+                            <i class="fas fa-compass"></i> Lat: 11.0809615 &nbsp;|&nbsp; Lng: 76.9983231
+                        </p>
+                    </div>
+                </div>
+                <div style="text-align: right; background: #f8f9fa; padding: 10px 20px; border-radius: 8px; border: 1px solid #e0e0e0; min-width: 180px;">
+                    <div style="font-size: 0.85rem; color: #757575; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;"><i class="fas fa-clock"></i> Live System Time</div>
+                    <div id="rt-live-clock" style="font-size: 1.5rem; font-weight: 700; color: #2e7d32; font-family: monospace; letter-spacing: 2px;">--:--:--</div>
+                </div>
+            </div>
             <!-- Recent Activity Feed -->
             <div class="rt-feed-box">
                 <div class="rt-feed-header"><i class="fas fa-list-alt"></i> Recent Activity Feed</div>
@@ -801,6 +817,14 @@
             setInterval(pollRealtimeData, 3000);
             setInterval(pollSensorStream, 1500);
             setInterval(pollHardwareStatus, 2000);
+            
+            // Standard Form Live Clock Update
+            setInterval(() => {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+                const clockEl = document.getElementById('rt-live-clock');
+                if (clockEl) clockEl.textContent = timeString;
+            }, 1000);
         });
     </script>
     <script>
