@@ -200,8 +200,15 @@
 
             <!-- Live Sensor Chart + Gauges Row -->
             <div class="rt-top-row">
+                <!-- Live Chart (NEW) -->
+                <div class="rt-chart-box" style="flex: 2; background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); min-height: 200px; display: flex; flex-direction: column;">
+                    <div style="font-weight: 600; margin-bottom: 10px; color: var(--tm);"><i class="fas fa-wave-square"></i> Real-time Sensor Waveform</div>
+                    <canvas id="rt-waveform-canvas" style="flex: 1; width: 100%; height: 150px; border-radius: 8px; background: #f8f9fa;"></canvas>
+                    <div id="rt-signal" style="margin-top: 10px; font-size: 0.85rem; text-align: right; color: #757575;"></div>
+                </div>
+
                 <!-- Gauge Cards -->
-                <div class="rt-gauges-col">
+                <div class="rt-gauges-col" style="flex: 1;">
                     <div class="rt-gauge-card" id="rt-gauge-ph">
                         <div class="rt-gauge-icon"><i class="fas fa-tint"></i></div>
                         <div class="rt-gauge-info">
@@ -334,10 +341,15 @@
                 <input type="hidden" id="live_sample" name="sample_type" value="milk">
                 <input type="hidden" id="live_sensor" name="sensor" value="">
                 <input type="hidden" id="live_weight" name="weight" value="1.0">
+                <input type="hidden" id="live_latitude" name="latitude" value="">
+                <input type="hidden" id="live_longitude" name="longitude" value="">
                 
                 <button type="button" class="btn-primary btn-large" onclick="submitLiveAnalysis()" style="font-size: 1.2rem; padding: 15px 30px; box-shadow: 0 4px 15px rgba(0, 191, 165, 0.4);">
                     <i class="fas fa-play-circle"></i> Analyze Current Hardware Sample
                 </button>
+                <div id="location-status" style="margin-top: 10px; font-size: 0.9rem; color: #757575;">
+                    <i class="fas fa-map-marker-alt"></i> Acquiring location...
+                </div>
             </form>
             <div id="hw-submit-msg" style="margin-top: 15px; font-weight: 600; color: #00bfa5; display: none;">Capturing live data...</div>
         </div>
@@ -705,6 +717,63 @@
 
         // Update waveform footer with source badge
         const _origPollSensor = pollSensorStream;
+        
+        let waveformData = [];
+        const MAX_WAVEFORM_PTS = 50;
+
+        function pushWaveform(d) {
+            waveformData.push({
+                val: parseFloat(d.sensor_reading) || 0,
+                time: String(d.unix_time)
+            });
+            if (waveformData.length > MAX_WAVEFORM_PTS) {
+                waveformData.shift();
+            }
+            drawWaveform();
+        }
+
+        function drawWaveform() {
+            const canvas = document.getElementById('rt-waveform-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            // Handle resizing
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width - 30; // approx padding
+            canvas.height = 150;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (waveformData.length < 2) return;
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            const stepX = w / (MAX_WAVEFORM_PTS - 1);
+            
+            let maxVal = 0.1; // fallback max
+            for(let pt of waveformData) if(pt.val > maxVal) maxVal = pt.val;
+            maxVal *= 1.2; // 20% headroom
+            
+            ctx.beginPath();
+            ctx.strokeStyle = '#00bfa5';
+            ctx.lineWidth = 2;
+            
+            for(let i=0; i<waveformData.length; i++) {
+                const pt = waveformData[i];
+                const x = i * stepX;
+                const y = h - (pt.val / maxVal * h);
+                if(i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Fill area
+            ctx.lineTo(waveformData.length * stepX - stepX, h);
+            ctx.lineTo(0, h);
+            ctx.fillStyle = 'rgba(0, 191, 165, 0.1)';
+            ctx.fill();
+        }
+
         function pollSensorStream() {
             fetch('/api/sensor-stream')
                 .then(r => r.json())
@@ -735,6 +804,17 @@
         });
     </script>
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Hardcoded to KGiSL Institute of Technology as requested
+            const latInput = document.getElementById('live_latitude');
+            const lngInput = document.getElementById('live_longitude');
+            if (latInput) latInput.value = 11.0809615;
+            if (lngInput) lngInput.value = 76.9983231;
+            
+            const locStatus = document.getElementById('location-status');
+            if (locStatus) locStatus.innerHTML = '<i class="fas fa-map-marker-alt" style="color: #2e7d32;"></i> Location Ready (KGiSL Institute)';
+        });
+
         function submitLiveAnalysis() {
             if (typeof waveformData !== "undefined" && waveformData.length > 0) {
                 const latest = waveformData[waveformData.length - 1];
@@ -743,12 +823,16 @@
                 document.getElementById('live_sensor').value = 0;
             }
             
-            const sampleText = document.getElementById('rt-sample-label').textContent.toLowerCase();
+            const sampleLabel = document.getElementById('rt-sample-label');
+            const sampleText = sampleLabel ? sampleLabel.textContent.toLowerCase() : 'milk';
             if (sampleText.includes('meat')) document.getElementById('live_sample').value = 'meat';
             else if (sampleText.includes('water')) document.getElementById('live_sample').value = 'water';
             else document.getElementById('live_sample').value = 'milk';
             
             document.getElementById('hw-submit-msg').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('hw-analysis-form').submit();
+            }, 100);
         }
     </script>
 </body>

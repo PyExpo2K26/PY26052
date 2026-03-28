@@ -135,16 +135,38 @@
                     }
                 });
             });
-        </script>
+        </script>        <!-- Latest Test & Location Section -->
+        <section class="card" aria-labelledby="latest-test-heading" style="margin-bottom: 25px; border-left: 5px solid {{ '#2e7d32' if last_test and last_test.level == 'safe' else ('#c62828' if last_test and last_test.level == 'danger' else '#9e9e9e') }};">
+            <h2 id="latest-test-heading" style="margin-bottom: 15px;"><i class="fas fa-map-marker-alt"></i> Latest Test Location</h2>
+            <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between;">
+                
+                {% if last_test %}
+                <div>
+                    <h3 style="margin: 0; color: var(--t);">Sample: {{ last_test.sample_type | title }}</h3>
+                    <p style="margin: 5px 0 0; font-size: 1.1rem;">
+                        <strong>{{ last_test.detected_level }} mg/L</strong>
+                        <span style="font-size: 0.85rem; padding: 3px 10px; border-radius: 12px; background: {{ '#e8f5e9' if last_test.level == 'safe' else '#ffebee' }}; color: {{ '#2e7d32' if last_test.level == 'safe' else '#c62828' }}; margin-left: 10px;">
+                            {{ last_test.level | upper }}
+                        </span>
+                    </p>
+                    <p style="margin: 5px 0 0; font-size: 0.9rem; color: var(--tm);"><i class="fas fa-clock"></i> {{ last_test.timestamp }}</p>
+                </div>
+                {% else %}
+                <div>
+                    <h3 style="margin: 0; color: var(--tm);">Hardware Ready</h3>
+                    <p style="margin: 5px 0 0; font-size: 0.9rem; color: #757575;">Location Active &amp; Ready for testing.</p>
+                </div>
+                {% endif %}
 
-        
-
-        
-        </div>
-
-
-
-        
+                <div style="background: #fcfcfc; padding: 15px; border-radius: 10px; text-align: center; min-width: 200px; border: 1px solid #e0e0e0;">
+                    <i class="fas fa-map-pin" style="font-size: 1.5rem; color: #1976d2; margin-bottom: 5px;"></i>
+                    <p style="margin: 0 0 10px 0; font-weight: 600; color: #333;">Tested Location</p>
+                    <a href="https://www.google.com/maps/place/KGiSL+Institute+of+Technology+(Autonomous)/@11.0809615,76.9957482,17z/data=!3m1!4b1!4m6!3m5!1s0x3ba8f792636f82b5:0xdc86449e9fb48675!8m2!3d11.0809615!4d76.9983231!16s%2Fm%2F0ztb1by?entry=ttu&g_ep=EgoyMDI2MDMyNC4wIKXMDSoASAFQAw%3D%3D" target="_blank" class="btn-primary" style="display: inline-block; padding: 8px 15px; font-size: 0.9rem; background: #1976d2; text-decoration: none;">
+                        <i class="fas fa-external-link-alt"></i> View on Map
+                    </a>
+                </div>
+            </div>
+        </section>
 
         <!-- Working Process Section -->
         <section class="card" aria-labelledby="process-heading">

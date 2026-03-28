@@ -178,7 +178,9 @@ def get_statistics():
 # @login_required  <-- Removed to make this public
 def home():
     stats = get_statistics()
-    return render_template("safety_dashboard.html", stats=stats)
+    history = load_analysis_history()
+    last_test = history[-1] if history else None
+    return render_template("safety_dashboard.html", stats=stats, last_test=last_test)
 
 # --- FEATURE 2: DYNAMIC GRAPH GENERATION ---
 # --- FEATURE 2: DYNAMIC GRAPH GENERATION ---
@@ -279,6 +281,8 @@ def detection_testing():
             sample_type = request.form.get("sample_type", "milk")
             sensor_val = float(request.form["sensor"])
             weight = float(request.form["weight"])
+            latitude = request.form.get("latitude")
+            longitude = request.form.get("longitude")
 
             # Main Logic (Detection)
             detected_level = round(sensor_val / weight, 2)
@@ -347,7 +351,9 @@ def detection_testing():
                 "ph_value": round(ph_value, 2),
                 "ph_status": ph_status,
                 "plot_url": plot_url,
-                "user": current_user  # Save user with record
+                "user": current_user,  # Save user with record
+                "latitude": latitude,
+                "longitude": longitude
             }
             history.append(analysis_entry)
             save_analysis_history(history)
@@ -591,6 +597,17 @@ def build_pdf(last_test, user, public_url=None, is_email=False):
     pdf.set_font("Arial", "B", 12)
     pdf.set_text_color(20, 60, 100)
     pdf.cell(90, 9, f"{ph_val} ({ph_status})", ln=True)
+
+    # Location
+    pdf.set_font("Arial", "", 12)
+    pdf.set_text_color(50, 50, 80)
+    pdf.cell(90, 9, f"Test Location:", ln=False)
+    pdf.set_font("Arial", "B", 10)
+    pdf.set_text_color(20, 60, 100)
+    lat = last_test.get('latitude')
+    lng = last_test.get('longitude')
+    loc_str = "KGiSL Institute of Technology" if lat and lng else "Not Captured"
+    pdf.cell(90, 9, loc_str, ln=True)
 
     # Safety Status (colored badge)
     status = last_test.get('level', 'unknown').upper()
