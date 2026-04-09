@@ -1,7 +1,0 @@
-*PURE CHECK* is a portable, handheld device designed to detect milk adulteration on the spot with court-admissible legal evidence and real-time regulatory intelligence for FSSAI.
-
-The system integrates six sensors — pH, TDS, turbidity, electrical conductivity, density through load cell, and color — with ESP32 microcontroller, GPS module, and cloud connectivity. The user pours milk into the integrated container and presses a button. Within 60 seconds, all sensors capture data while GPS records location and satellite timestamp. A sensor fusion algorithm processes these parameters to calculate quality score and identify adulterants including water, detergent, starch, and urea. The system also flags steroid suspicion through multi-parameter anomaly detection for targeted lab confirmation.
-
-Each test generates complete legal evidence — GPS coordinates, unfakeable satellite timestamp, digital signature, and QR code — creating an unbreakable chain of custody admissible in court. Data is stored locally on SD card and uploaded to cloud dashboard where FSSAI regulators access real-time adulteration heatmaps, instant alerts, trend analytics, and officer performance tracking.
-
-The device is battery operated, lightweight, and lower costs — ten times cheaper than existing portable milk testers — enabling mass deployment across India's Food Safety Officers. This system shifts milk quality enforcement from reactive lab testing to proactive on-the-spot action, ensuring safer milk for millions of consumers.
